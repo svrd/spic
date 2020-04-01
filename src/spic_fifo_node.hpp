@@ -89,17 +89,9 @@ public:
         return MessagePtr(new FifoMessage(size));
     }
 
-    virtual MessagePtr createMessage(MessageId msgId, size_t size) override
+    virtual MessagePtr createMessage(const uint8_t* payload, size_t size) override
     {
-        auto msg = createMessage(sizeof(MessageId)+size);
-        msg->pushPayload(msgId);
-        return msg;
-    }
-
-    virtual MessagePtr createMessage(
-        MessageId msgId, const uint8_t* payload, size_t size) override
-    {
-        auto msg = createMessage(msgId, size);
+        auto msg = createMessage(size);
         msg->pushPayload(payload, size);
         return msg;
     }
@@ -121,15 +113,13 @@ public:
         return true;
     }
 
-    virtual bool send(NodeId receiverId,
-                      MessageId msgId,
-                      const uint8_t* payload,
-                      size_t size) override
+    virtual bool send(NodeId receiverId, const uint8_t* payload,
+        size_t size) override
     {
-        return send(receiverId, createMessage(msgId, payload, size));
+        return send(receiverId, createMessage(payload, size));
     }
 
-    virtual size_t noOfMessages()
+    virtual size_t noOfMessages() override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         return m_messages.size();
@@ -145,21 +135,6 @@ public:
         auto msg = m_messages.front();
         m_messages.pop();
         return msg;
-    }
-
-    virtual void receive(NodeId& fromId, MessageId msgId,
-                         uint8_t* payload, size_t size) override
-    {
-        auto msg = receive();
-        MessageId recvMsgId;
-        msg->popPayload(recvMsgId);
-        if(recvMsgId != msgId)
-        {
-            // Discard?!
-            return;
-        }
-        fromId = msg->senderId();
-        msg->popPayload(payload, size);
     }
 
 protected:
@@ -184,6 +159,7 @@ protected:
     MessagePtr receiveImpl()
     {
         auto msg = createMessage();
+        /// TODO: create method for this to avoid cast
         auto& fifoMsg = *dynamic_cast<FifoMessage*>(msg.get());
 
         auto bytes = m_ownFifo.read(fifoMsg.data(), FifoMessage::HEADER_SIZE);
@@ -197,15 +173,14 @@ protected:
         bytes = m_ownFifo.read(fifoMsg.data()+FifoMessage::HEADER_SIZE,
                                fifoMsg.payloadSize());
         throwSystemExceptionIf(failed(bytes));
-        throwNodeExceptionIf(bytes==0, "Complete message not received");
 
         return msg;
     }
 
     void throwNodeExceptionIf(bool condition, const std::string& msg)
     {
-        if(condition) {
-
+        if(condition)
+        {
             throw Exception(msg);
         }
     }

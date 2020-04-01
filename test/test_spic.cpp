@@ -58,7 +58,7 @@ TEST_F(TestSpic, sendMessageToSelf)
     Spic::NodeId fooNodeId = 1u;
     auto fooNode = Spic::CreateNode(fooNodeId);
     fooNode->start();
-    fooNode->send(fooNodeId, 0, NULL, 0);
+    fooNode->send(fooNodeId, NULL, 0);
 
     unsigned retries = 1000u;
     while(retries && fooNode->noOfMessages() == 0u)
@@ -70,17 +70,35 @@ TEST_F(TestSpic, sendMessageToSelf)
     ASSERT_EQ(fooNode->noOfMessages(), 1u);
 }
 
+TEST_F(TestSpic, receiveMessageFromSelf)
+{
+    Spic::NodeId fooNodeId = 1u;
+    uint8_t sendData[] = {0u, 1u, 2u, 3u};
+    auto fooNode = Spic::CreateNode(fooNodeId);
+    fooNode->start();
+    fooNode->send(fooNodeId, sendData, sizeof(sendData));
+
+    unsigned retries = 1000u;
+    while(retries && fooNode->noOfMessages() == 0u)
+    {
+        std::this_thread::sleep_for(1ms);
+        retries--;
+    }
+    ASSERT_GT(retries, 0u);
+    auto msgPtr = fooNode->receive();
+    ASSERT_EQ(msgPtr->senderId(), fooNodeId);
+    ASSERT_EQ(msgPtr->payloadSize(), sizeof(sendData));
+    uint8_t recvData[sizeof(sendData)];
+    (void)memset(recvData, 0u, sizeof(recvData));
+    msgPtr->popPayload(recvData, sizeof(recvData));
+    ASSERT_THAT(recvData, ElementsAreArray(sendData));
+}
+
 TEST_F(TestSpic, requestConfirm)
 {
     const Spic::MessageId FOO_REQ = 1;
     class FooRequest {
     public:
-        FooRequest() : FooRequest(false) {}
-        FooRequest(bool status) : barStatus(status) {}
-        FooRequest(const FooRequest& copy)
-        {
-            this->barStatus = copy.barStatus;
-        }
         bool barStatus;
     };
 
@@ -90,6 +108,7 @@ TEST_F(TestSpic, requestConfirm)
         bool barStatus;
     };
 
+    /* Create and start the two nodes foo and bar */
     Spic::NodeId fooNodeId = 1;
     Spic::NodePtr fooNode = Spic::CreateNode(fooNodeId);
     fooNode->start();
@@ -98,29 +117,34 @@ TEST_F(TestSpic, requestConfirm)
     Spic::NodePtr barNode = Spic::CreateNode(barNodeId);
     barNode->start();
 
+    /* Send a foo request from foo too bar */
     FooRequest fooRequest = {true};
-    fooNode->send(
-        barNodeId, FOO_REQ, (uint8_t*)&fooRequest, sizeof(FooRequest));
+    auto sentReqMsg = fooNode->createMessage(sizeof(FOO_REQ)+ sizeof(fooRequest));
+    sentReqMsg->pushPayload(FOO_REQ);
+    sentReqMsg->pushPayload(fooRequest);
+    fooNode->send(barNodeId, sentReqMsg);
 
-    auto msg = barNode->receive();
-    Spic::NodeId requesterId = msg->senderId();
-    auto& fooRequestRecv = msg->get<FooRequest>();
+    /* Bar receives the request from foo */
+    auto recvReqMsg = barNode->receive();
+    auto requesterId = recvReqMsg->senderId();
+    auto& recvReqMsgId = recvReqMsg->get<Spic::MessageId>();
+    auto& recvFooRequest = recvReqMsg->get<FooRequest>();
 
-    FooRequest fooReq2 = fooRequestRecv;
+    /* Bar responds with a confirm back to foo */
+    FooConfirm fooConfirm = {recvFooRequest.barStatus};
+    auto sentCfmMsg = barNode->createMessage(sizeof(FOO_CFM) + sizeof(fooConfirm));
+    sentCfmMsg->pushPayload(FOO_CFM);
+    sentCfmMsg->pushPayload(fooConfirm);
+    barNode->send(requesterId, sentCfmMsg);
 
-    FooConfirm fooConfirm = {fooRequestRecv.barStatus};
-    barNode->send(
-        requesterId, FOO_CFM, (uint8_t*)&fooConfirm, sizeof(FooConfirm));
+    /* Foo receives the confirm from bar */
+    auto recvCfmMsg = fooNode->receive();
+    auto confirmerId = recvCfmMsg->senderId();
+    auto& recvCfmMsgId = recvCfmMsg->get<Spic::MessageId>();
+    auto& recvFooConfirm = recvCfmMsg->get<FooConfirm>();
 
-    Spic::NodeId confirmerId;
-    FooConfirm fooConfirmRecv;
-    fooNode->receive(
-        confirmerId, FOO_CFM, (uint8_t*)&fooConfirmRecv, sizeof(FooConfirm));
-
-    ASSERT_EQ(fooNodeId, requesterId);
-    ASSERT_EQ(barNodeId, confirmerId);
-    ASSERT_EQ(fooRequest.barStatus, fooRequestRecv.barStatus);
-    ASSERT_EQ(fooRequest.barStatus, fooConfirm.barStatus);
-    ASSERT_EQ(fooRequest.barStatus, fooConfirmRecv.barStatus);
+    /* Assert that foo receives the correct barStatus in the confirm from bar */
+    ASSERT_EQ(confirmerId, barNodeId);
+    ASSERT_EQ(recvFooConfirm.barStatus, fooRequest.barStatus);
 }
 

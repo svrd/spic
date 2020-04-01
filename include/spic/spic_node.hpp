@@ -69,24 +69,19 @@ public:
 
     virtual ~Node() {}
     virtual MessagePtr createMessage(size_t size = 0) = 0;
-    virtual MessagePtr createMessage(MessageId msgId, size_t size) = 0;
-    virtual MessagePtr createMessage(MessageId msgId,
-        const uint8_t* payload, size_t size) = 0;
+    virtual MessagePtr createMessage(const uint8_t* payload, size_t size) = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool isRunning() = 0;
     virtual bool send(NodeId receiverId, const MessagePtr msg) = 0;
-    virtual bool send(NodeId receiverId, MessageId msgId,
-        const uint8_t* payload, size_t size) = 0;
+    virtual bool send(NodeId receiverId, const uint8_t* payload, 
+        size_t size) = 0;
     virtual size_t noOfMessages() = 0;
     virtual MessagePtr receive() = 0;
-    virtual void receive(NodeId& fromId, MessageId msgId, uint8_t* payload,
-        size_t size) = 0;
 };
 
 typedef std::shared_ptr<Node> NodePtr;
 
 NodePtr CreateNode(NodeId id);
-MessagePtr CreateMessage(size_t size);
 
 } // namespace Spic
