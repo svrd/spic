@@ -103,14 +103,17 @@ TEST_F(TestSpic, receiveMessageFromSelf)
 TEST_F(TestSpic, requestConfirm)
 {
     const Spic::MessageId FOO_REQ = 1;
+    const Spic::MessageId FOO_CFM = 2;
+
     class FooRequest {
     public:
+        const Spic::MessageId ID = FOO_REQ;
         int fooStatus;
     };
 
-    const Spic::MessageId FOO_CFM = 2;
     class FooConfirm {
     public:
+        const Spic::MessageId ID = FOO_CFM;
         int barStatus;
     };
 
@@ -124,39 +127,34 @@ TEST_F(TestSpic, requestConfirm)
     barNode->start();
 
     /* Send a foo request from foo too bar */
-    FooRequest fooRequest = {100u};
-    auto sentReqMsg = fooNode->createMessage(sizeof(FOO_REQ)+ sizeof(fooRequest));
-    sentReqMsg->pushPayload(FOO_REQ);
+    FooRequest fooRequest = {FOO_REQ, 100u};
+    auto sentReqMsg = fooNode->createMessage(sizeof(fooRequest));
     sentReqMsg->pushPayload(fooRequest);
     fooNode->send(barNodeId, sentReqMsg);
 
     /* Bar receives the request from foo */
     auto recvReqMsg = barNode->receive();
     auto requesterId = recvReqMsg->senderId();
-    //auto recvReqMsgId = recvReqMsg->get<Spic::MessageId>();
-    Spic::MessageId recvReqMsgId;
-    recvReqMsg->popPayload(recvReqMsgId);
-    auto& recvFooRequest = recvReqMsg->get<FooRequest>();
+    FooRequest recvFooRequest;
+    recvReqMsg->popPayload(recvFooRequest);
 
     /* Bar responds with a confirm back to foo */
-    FooConfirm fooConfirm = {recvFooRequest.fooStatus + 1};
-    auto sentCfmMsg = barNode->createMessage(sizeof(FOO_CFM) + sizeof(fooConfirm));
-    sentCfmMsg->pushPayload(FOO_CFM);
+    FooConfirm fooConfirm = {FOO_CFM, recvFooRequest.fooStatus + 1};
+    auto sentCfmMsg = barNode->createMessage(sizeof(fooConfirm));
     sentCfmMsg->pushPayload(fooConfirm);
     barNode->send(requesterId, sentCfmMsg);
 
     /* Foo receives the confirm from bar */
     auto recvCfmMsg = fooNode->receive();
     auto confirmerId = recvCfmMsg->senderId();
-    //auto recvCfmMsgId = recvCfmMsg->get<Spic::MessageId>();
-    Spic::MessageId recvCfmMsgId;
-    recvCfmMsg->popPayload(recvCfmMsgId);
-    auto& recvFooConfirm = recvCfmMsg->get<FooConfirm>();
+
+    FooConfirm recvFooConfirm;
+    recvCfmMsg->popPayload(recvFooConfirm);
 
     /* Assert that foo receives the correct barStatus in the confirm from bar */
     ASSERT_EQ(confirmerId, barNodeId);
-    ASSERT_EQ(recvReqMsgId, FOO_REQ);
-    ASSERT_EQ(recvCfmMsgId, FOO_CFM);
+    ASSERT_EQ(recvFooRequest.ID, FOO_REQ);
+    ASSERT_EQ(recvFooConfirm.ID, FOO_CFM);
     ASSERT_EQ(recvFooConfirm.barStatus, fooRequest.fooStatus + 1);
 }
 
