@@ -13,7 +13,13 @@ set_target_properties(gmock_main PROPERTIES FOLDER extern)
 
 set(TESTNAME "testspic")
 # create an exectuable in which the tests will be stored
-add_executable(${TESTNAME} test_spic_c_api.cpp test_spic.cpp test_spic_fifo_node.cpp test_spic_fifo_node_message.cpp)
+add_executable(${TESTNAME}
+    test_spic_c_api.cpp
+    test_spic.cpp
+    test_spic_fifo_node.cpp
+    test_spic_fifo_node_message.cpp)
+target_compile_options(${TESTNAME} PRIVATE -Werror -Wall -Wextra)
+
 # link the Google test infrastructure, mocking library, and a default main fuction to
 # the test executable.  Remove g_test_main if writing your own main function.
 target_link_libraries(${TESTNAME} gtest gmock gtest_main spic)

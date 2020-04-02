@@ -12,6 +12,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <iostream>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -108,9 +109,7 @@ public:
 
         fifoMsg.encodeHeader(m_nodeId);
 
-        auto bytes = fifo.write(fifoMsg.data(), fifoMsg.dataSize());
-
-        return true;
+        return fifo.write(fifoMsg.data(), fifoMsg.dataSize());
     }
 
     virtual bool send(NodeId receiverId, const uint8_t* payload,
@@ -151,37 +150,40 @@ protected:
         }
         catch(FifoNode::Exception& e)
         {
-            // TODO: Remove
-            printf("%s\n", e.what());
+            std::cerr << e.what() << std::endl;
         }
     }
 
     MessagePtr receiveImpl()
     {
         auto msg = createMessage();
-        /// TODO: create method for this to avoid cast
         auto& fifoMsg = *dynamic_cast<FifoMessage*>(msg.get());
 
-        auto bytes = m_ownFifo.read(fifoMsg.data(), FifoMessage::HEADER_SIZE);
-
-        throwSystemExceptionIf(failed(bytes));
-        throwNodeExceptionIf(bytes!=FifoMessage::HEADER_SIZE,
-            "Complete header not received");
+        if (!m_ownFifo.read(fifoMsg.data(), FifoMessage::HEADER_SIZE))
+        {
+            throwNodeException("Complete header not received");
+        }
 
         msg->reservePayloadSize(fifoMsg.payloadSize());
 
-        bytes = m_ownFifo.read(fifoMsg.data()+FifoMessage::HEADER_SIZE,
-                               fifoMsg.payloadSize());
-        throwSystemExceptionIf(failed(bytes));
-
+        if (!m_ownFifo.read(fifoMsg.data()+FifoMessage::HEADER_SIZE,
+                               fifoMsg.payloadSize()))
+        {
+            throwNodeException("Complete message not received");
+        }
         return msg;
+    }
+
+    void throwNodeException(const std::string& msg)
+    {
+        throw Exception(msg);
     }
 
     void throwNodeExceptionIf(bool condition, const std::string& msg)
     {
         if(condition)
         {
-            throw Exception(msg);
+            throwNodeException(msg);
         }
     }
 

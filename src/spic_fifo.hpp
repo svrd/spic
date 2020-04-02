@@ -62,18 +62,30 @@ public:
         }
     }
 
-    ssize_t read(void *buf, size_t size)
+    bool read(void *buf, size_t count)
     {
-        auto bytes = m_sysIf.read(m_fd, buf, size);
-        throwSystemExceptionIf(failed(bytes));
-        return bytes;
+        ssize_t noOfBytes = 0;
+        noOfBytes = m_sysIf.read(m_fd, buf, count);
+        throwSystemExceptionIf(failed(noOfBytes));
+        return noOfBytes == (ssize_t)count;
     }
 
-    ssize_t write(const void *buf, size_t count)
+    bool write(const void *buf, size_t count)
     {
-        auto bytes = m_sysIf.write(m_fd, buf, count);
-        throwSystemExceptionIf(failed(bytes));
-        return bytes;
+        size_t totalNoOfBytes = 0;
+        ssize_t noOfBytes = 0;
+        while (totalNoOfBytes < count)
+        {
+            noOfBytes = m_sysIf.write(m_fd, ((uint8_t*)buf)+totalNoOfBytes, count);
+            throwSystemExceptionIf(failed(noOfBytes));
+            if (noOfBytes == 0)
+            {
+                throwSystemExceptionIf(errno != 0);
+                break;
+            }
+            totalNoOfBytes += noOfBytes;
+        }
+        return totalNoOfBytes == count;
     }
 
 protected:

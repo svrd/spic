@@ -59,7 +59,12 @@ int spic_start_node(spic_node_id_t node_id)
 
 void spic_stop_node(spic_node_id_t node_id)
 {
-    return;
+    if (!spic_node_exists(node_id))
+    {
+        return;
+    }
+    auto node_ptr = node_map[node_id];
+    node_ptr->stop();
 }
 
 bool spic_node_is_running(spic_node_id_t node_id)

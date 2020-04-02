@@ -16,6 +16,7 @@ add_library(spic SHARED
     include/spic/spic.h)
 target_include_directories(spic PUBLIC include)
 target_compile_features(spic PUBLIC cxx_std_17)
+target_compile_options(spic PRIVATE -Werror -Wall -Wextra)
 
 add_executable(spic-client apps/spic_client.c)
 target_link_libraries(spic-client PUBLIC spic)

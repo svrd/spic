@@ -99,13 +99,13 @@ TEST_F(TestSpic, requestConfirm)
     const Spic::MessageId FOO_REQ = 1;
     class FooRequest {
     public:
-        bool barStatus;
+        int fooStatus;
     };
 
     const Spic::MessageId FOO_CFM = 2;
     class FooConfirm {
     public:
-        bool barStatus;
+        int barStatus;
     };
 
     /* Create and start the two nodes foo and bar */
@@ -118,7 +118,7 @@ TEST_F(TestSpic, requestConfirm)
     barNode->start();
 
     /* Send a foo request from foo too bar */
-    FooRequest fooRequest = {true};
+    FooRequest fooRequest = {100u};
     auto sentReqMsg = fooNode->createMessage(sizeof(FOO_REQ)+ sizeof(fooRequest));
     sentReqMsg->pushPayload(FOO_REQ);
     sentReqMsg->pushPayload(fooRequest);
@@ -127,11 +127,13 @@ TEST_F(TestSpic, requestConfirm)
     /* Bar receives the request from foo */
     auto recvReqMsg = barNode->receive();
     auto requesterId = recvReqMsg->senderId();
-    auto& recvReqMsgId = recvReqMsg->get<Spic::MessageId>();
+    //auto recvReqMsgId = recvReqMsg->get<Spic::MessageId>();
+    Spic::MessageId recvReqMsgId;
+    recvReqMsg->popPayload(recvReqMsgId);
     auto& recvFooRequest = recvReqMsg->get<FooRequest>();
 
     /* Bar responds with a confirm back to foo */
-    FooConfirm fooConfirm = {recvFooRequest.barStatus};
+    FooConfirm fooConfirm = {recvFooRequest.fooStatus + 1};
     auto sentCfmMsg = barNode->createMessage(sizeof(FOO_CFM) + sizeof(fooConfirm));
     sentCfmMsg->pushPayload(FOO_CFM);
     sentCfmMsg->pushPayload(fooConfirm);
@@ -140,11 +142,15 @@ TEST_F(TestSpic, requestConfirm)
     /* Foo receives the confirm from bar */
     auto recvCfmMsg = fooNode->receive();
     auto confirmerId = recvCfmMsg->senderId();
-    auto& recvCfmMsgId = recvCfmMsg->get<Spic::MessageId>();
+    //auto recvCfmMsgId = recvCfmMsg->get<Spic::MessageId>();
+    Spic::MessageId recvCfmMsgId;
+    recvCfmMsg->popPayload(recvCfmMsgId);
     auto& recvFooConfirm = recvCfmMsg->get<FooConfirm>();
 
     /* Assert that foo receives the correct barStatus in the confirm from bar */
     ASSERT_EQ(confirmerId, barNodeId);
-    ASSERT_EQ(recvFooConfirm.barStatus, fooRequest.barStatus);
+    ASSERT_EQ(recvReqMsgId, FOO_REQ);
+    ASSERT_EQ(recvCfmMsgId, FOO_CFM);
+    ASSERT_EQ(recvFooConfirm.barStatus, fooRequest.fooStatus + 1);
 }
 
