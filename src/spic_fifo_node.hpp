@@ -62,15 +62,11 @@ public:
     virtual void stop() override
     {
         m_isRunning = false;
-        uint8_t dummy = 0;
-        try
-        {
-            m_ownFifo.write(&dummy, sizeof(dummy));
-        }
-        catch(const std::exception& e)
-        {
-            // The write may fail if fifo is not created
-        }
+
+        m_ownFifo.destroy();
+
+        // constexpr int quit_signal = SIGINT;
+        // ::pthread_kill(m_thread.native_handle(), quit_signal);
 
         if(m_thread.joinable())
         {
@@ -148,8 +144,9 @@ protected:
                 m_messageReceived.notify_one();
             }
         }
-        catch(FifoNode::Exception& e)
+        catch(std::exception& e)
         {
+            // TODO: Do some error counting instead?
             std::cerr << e.what() << std::endl;
         }
     }

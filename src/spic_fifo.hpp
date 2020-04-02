@@ -64,10 +64,19 @@ public:
 
     bool read(void *buf, size_t count)
     {
+        size_t totalNoOfBytes = 0;
         ssize_t noOfBytes = 0;
-        noOfBytes = m_sysIf.read(m_fd, buf, count);
-        throwSystemExceptionIf(failed(noOfBytes));
-        return noOfBytes == (ssize_t)count;
+        while (totalNoOfBytes < count)
+        {
+            noOfBytes = m_sysIf.read(m_fd, buf, count);
+            throwSystemExceptionIf(failed(noOfBytes));
+            if (noOfBytes == 0)
+            {
+                break;
+            }
+            totalNoOfBytes += noOfBytes;
+        }
+        return totalNoOfBytes == count;
     }
 
     bool write(const void *buf, size_t count)
@@ -76,7 +85,8 @@ public:
         ssize_t noOfBytes = 0;
         while (totalNoOfBytes < count)
         {
-            noOfBytes = m_sysIf.write(m_fd, ((uint8_t*)buf)+totalNoOfBytes, count);
+            noOfBytes = m_sysIf.write(m_fd, ((uint8_t*)buf)+totalNoOfBytes, 
+                count);
             throwSystemExceptionIf(failed(noOfBytes));
             if (noOfBytes == 0)
             {
