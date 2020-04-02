@@ -16,17 +16,10 @@ class TestSpic : public ::testing::Test {
 protected:
     void SetUp() override
     {
-        removeFifo();
     }
 
     void TearDown() override
     {
-        removeFifo();
-    }
-
-    void removeFifo()
-    {
-        ::system("rm -f /tmp/spic.*.fifo");
     }
 };
 

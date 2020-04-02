@@ -12,20 +12,12 @@ protected:
     void SetUp() override
     {
         spic_destroy_all_nodes();
-        RemoveFifos();
     }
 
     void TearDown() override
     {
         spic_destroy_all_nodes();
-        RemoveFifos();
     }
-
-    void RemoveFifos()
-    {
-        system("rm -f /tmp/spic*");
-    }
-
 };
 
 TEST_F(TestSpicCApi, createNode)
