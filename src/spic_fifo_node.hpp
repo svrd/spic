@@ -65,9 +65,6 @@ public:
 
         m_ownFifo.destroy();
 
-        // constexpr int quit_signal = SIGINT;
-        // ::pthread_kill(m_thread.native_handle(), quit_signal);
-
         if(m_thread.joinable())
         {
             m_thread.join();
