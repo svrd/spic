@@ -44,6 +44,19 @@ TEST_F(TestSpic, createdNodeIsNotRunning)
     ASSERT_FALSE(fooNode->isRunning());
 }
 
+TEST_F(TestSpic, destroyedNodeCanBeRecreated)
+{
+    Spic::NodeId fooNodeId = 1u;
+    {
+        auto fooNode = Spic::CreateNode(fooNodeId);
+        fooNode->start();
+    }
+    {
+        auto fooNode = Spic::CreateNode(fooNodeId);
+        fooNode->start();
+    }
+}
+
 TEST_F(TestSpic, startedNodeIsRunningAndHasZeroMessages)
 {
     Spic::NodeId fooNodeId = 1u;
