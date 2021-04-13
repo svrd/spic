@@ -12,7 +12,6 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
-#include <iostream>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -29,7 +28,7 @@ public:
         Exception(const std::string& msg)
             : m_msg(msg) {}
 
-        const char* what()
+        const char* what() const noexcept override
         {
             return m_msg.c_str();
         }
@@ -47,14 +46,14 @@ public:
 
     virtual ~FifoNode()
     {
-        stop();
+        this->stop();
     }
 
     virtual void start() override
     {
+        this->stop();
         m_ownFifo.create();
         m_ownFifo.open();
-
         m_isRunning = true;
         m_thread = std::thread(&Spic::Impl::FifoNode::run, this);
     }
@@ -63,14 +62,18 @@ public:
     {
         m_isRunning = false;
 
+        // Send a dummy message to self to wake up the thread if it is
+        // blocked in read
+        auto dummyData = 0u;
+        (void)m_ownFifo.write(&dummyData, sizeof(dummyData));
+
+        m_ownFifo.close();
         m_ownFifo.destroy();
 
         if(m_thread.joinable())
         {
             m_thread.join();
         }
-
-        m_ownFifo.destroy();
     }
 
     virtual bool isRunning() override
@@ -83,13 +86,12 @@ public:
         return MessagePtr(new FifoMessage(size));
     }
 
-    virtual MessagePtr createMessage(const uint8_t* payload, size_t size) override
+    virtual MessagePtr createMessage(const void* payload, size_t size) override
     {
         auto msg = createMessage(size);
         msg->pushPayload(payload, size);
         return msg;
     }
-
 
     virtual bool send(NodeId receiverId, const MessagePtr msg) override
     {
@@ -105,13 +107,13 @@ public:
         return fifo.write(fifoMsg.data(), fifoMsg.dataSize());
     }
 
-    virtual bool send(NodeId receiverId, const uint8_t* payload,
+    virtual bool send(NodeId receiverId, const void* payload,
         size_t size) override
     {
         return send(receiverId, createMessage(payload, size));
     }
 
-    virtual size_t noOfMessages() override
+    virtual size_t nrOfMessages() override
     {
         std::unique_lock<std::mutex> lock(m_mutex);
         return m_messages.size();
@@ -131,20 +133,23 @@ public:
 
 protected:
 
-    void run() {
-        try
+    void run()
+    {
+        while(m_isRunning)
         {
-            auto msg = receiveImpl();
+            try
             {
-                std::unique_lock<std::mutex> lock(m_mutex);
-                m_messages.push(msg);
-                m_messageReceived.notify_one();
+                auto msg = receiveImpl();
+                {
+                    std::unique_lock<std::mutex> lock(m_mutex);
+                    m_messages.push(msg);
+                    m_messageReceived.notify_one();
+                }
             }
-        }
-        catch(std::exception& e)
-        {
-            // TODO: Do some error counting instead?
-            std::cerr << e.what() << std::endl;
+            catch(std::exception& e)
+            {
+                // TODO:
+            }
         }
     }
 
@@ -160,7 +165,7 @@ protected:
 
         msg->reservePayloadSize(fifoMsg.payloadSize());
 
-        if (!m_ownFifo.read(fifoMsg.data()+FifoMessage::HEADER_SIZE,
+        if (!m_ownFifo.read((uint8_t*)fifoMsg.data()+FifoMessage::HEADER_SIZE,
                                fifoMsg.payloadSize()))
         {
             throwNodeException("Complete message not received");

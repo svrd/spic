@@ -19,10 +19,11 @@ target_compile_features(spic PUBLIC cxx_std_17)
 target_compile_options(spic PRIVATE -Werror -Wall -Wextra)
 
 add_executable(spic-filetransfer-client apps/spic_filetransfer_client/spic_filetransfer_client.c)
-target_link_libraries(spic-filetransfer-client PUBLIC spic)
+target_link_libraries(spic-filetransfer-client PUBLIC spic pthread)
 target_include_directories(spic-filetransfer-client PUBLIC apps/include)
+
 add_executable(spic-filetransfer-server apps/spic_filetransfer_server/spic_filetransfer_server.cpp)
-target_link_libraries(spic-filetransfer-server PUBLIC spic)
+target_link_libraries(spic-filetransfer-server PUBLIC spic pthread)
 target_include_directories(spic-filetransfer-server PUBLIC apps/include)
 
 

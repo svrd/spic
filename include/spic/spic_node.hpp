@@ -16,11 +16,11 @@ class Message {
 public:
 
     virtual NodeId senderId() = 0;
-    virtual uint8_t* payload() = 0;
+    virtual void* payload() = 0;
     virtual size_t payloadSize() = 0;
     virtual void reservePayloadSize(size_t size) = 0;
-    virtual void pushPayload(const uint8_t* data, size_t size) = 0;
-    virtual void popPayload(uint8_t* data, size_t size) = 0;
+    virtual void pushPayload(const void* data, size_t size) = 0;
+    virtual void popPayload(void* data, size_t size) = 0;
     virtual void pushPayload(const std::string& msg) = 0;
     virtual void popPayload(std::string& msg) = 0;
 
@@ -33,13 +33,13 @@ public:
     template <typename T>
     void pushPayload(T payload)
     {
-        pushPayload((uint8_t*)&payload, sizeof(payload));
+        pushPayload((void*)&payload, sizeof(payload));
     }
 
     template <typename T>
     void popPayload(T& payload)
     {
-        popPayload((uint8_t*)&payload, sizeof(payload));
+        popPayload((void*)&payload, sizeof(payload));
     }
 
     template <typename T>
@@ -64,19 +64,19 @@ public:
 
     class Exception : public std::exception {
     public:
-        virtual const char* what() = 0;
+        virtual const char* what() const noexcept override = 0;
     };
 
     virtual ~Node() {}
     virtual MessagePtr createMessage(size_t size = 0) = 0;
-    virtual MessagePtr createMessage(const uint8_t* payload, size_t size) = 0;
+    virtual MessagePtr createMessage(const void* payload, size_t size) = 0;
     virtual void start() = 0;
     virtual void stop() = 0;
     virtual bool isRunning() = 0;
     virtual bool send(NodeId receiverId, const MessagePtr msg) = 0;
-    virtual bool send(NodeId receiverId, const uint8_t* payload, 
+    virtual bool send(NodeId receiverId, const void* payload,
         size_t size) = 0;
-    virtual size_t noOfMessages() = 0;
+    virtual size_t nrOfMessages() = 0;
     virtual MessagePtr receive() = 0;
 };
 

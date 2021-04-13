@@ -76,6 +76,52 @@ bool spic_node_is_running(spic_node_id_t node_id)
     return node_map[node_id]->isRunning();
 }
 
+spic_result_t spic_send(spic_node_id_t src_node_id, spic_node_id_t dst_node_id,
+    void* data, size_t size)
+{
+    if (!spic_node_exists(src_node_id))
+    {
+        return SPIC_NOK;
+    }
+    auto node_ptr = node_map[src_node_id];
+
+    bool send_result = false;
+
+    try
+    {
+        send_result = node_ptr->send(dst_node_id, data, size);
+    }
+    catch(std::exception& e) {}
+
+    if (!send_result)
+    {
+        return SPIC_NOK;
+    }
+    return SPIC_OK;
+}
+
+spic_result_t spic_receive(spic_node_id_t node_id, void* data, size_t size)
+{
+    if (!spic_node_exists(node_id))
+    {
+        return SPIC_NOK;
+    }
+    auto node_ptr = node_map[node_id];
+    auto messagePtr = node_ptr->receive();
+    messagePtr->popPayload(data, size);
+    return SPIC_OK;
+}
+
+ssize_t spic_get_no_of_messages(spic_node_id_t node_id)
+{
+    if (!spic_node_exists(node_id))
+    {
+        return SPIC_NOK;
+    }
+    auto node_ptr = node_map[node_id];
+    return node_ptr->nrOfMessages();
+}
+
 namespace Spic::Impl {
 
 void throwSystemExceptionIf(bool condition) {

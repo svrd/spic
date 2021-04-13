@@ -56,7 +56,7 @@ TEST_F(TestSpic, startedNodeIsRunningAndHasZeroMessages)
     auto fooNode = Spic::CreateNode(fooNodeId);
     fooNode->start();
     ASSERT_TRUE(fooNode->isRunning());
-    ASSERT_EQ(0u, fooNode->noOfMessages());
+    ASSERT_EQ(fooNode->nrOfMessages(), 0u);
 }
 
 TEST_F(TestSpic, sendMessageToSelf)
@@ -64,16 +64,39 @@ TEST_F(TestSpic, sendMessageToSelf)
     Spic::NodeId fooNodeId = 1u;
     auto fooNode = Spic::CreateNode(fooNodeId);
     fooNode->start();
-    fooNode->send(fooNodeId, NULL, 0);
+    const auto nrOfMessages = 1u;
+    fooNode->send(fooNodeId, NULL, 0u);
 
     unsigned retries = 1000u;
-    while(retries && fooNode->noOfMessages() == 0u)
+    while(retries && fooNode->nrOfMessages() != nrOfMessages)
     {
         std::this_thread::sleep_for(1ms);
         retries--;
     }
     ASSERT_GT(retries, 0u);
-    ASSERT_EQ(fooNode->noOfMessages(), 1u);
+    ASSERT_EQ(fooNode->nrOfMessages(), nrOfMessages);
+}
+
+
+TEST_F(TestSpic, sendMultipleMessagesToSelf)
+{
+    Spic::NodeId fooNodeId = 1u;
+    auto fooNode = Spic::CreateNode(fooNodeId);
+    fooNode->start();
+    const auto nrOfMessages = 10;
+    for(auto i = 0; i < nrOfMessages; i++)
+    {
+        fooNode->send(fooNodeId, NULL, 0);
+    }
+
+    unsigned retries = 1000u;
+    while(retries && fooNode->nrOfMessages() != nrOfMessages)
+    {
+        std::this_thread::sleep_for(1ms);
+        retries--;
+    }
+    ASSERT_GT(retries, 0u);
+    ASSERT_EQ(fooNode->nrOfMessages(), nrOfMessages);
 }
 
 TEST_F(TestSpic, receiveMessageFromSelf)
@@ -85,7 +108,7 @@ TEST_F(TestSpic, receiveMessageFromSelf)
     fooNode->send(fooNodeId, sendData, sizeof(sendData));
 
     unsigned retries = 1000u;
-    while(retries && fooNode->noOfMessages() == 0u)
+    while(retries && fooNode->nrOfMessages() == 0u)
     {
         std::this_thread::sleep_for(1ms);
         retries--;
@@ -157,4 +180,3 @@ TEST_F(TestSpic, requestConfirm)
     ASSERT_EQ(recvFooConfirm.ID, FOO_CFM);
     ASSERT_EQ(recvFooConfirm.barStatus, fooRequest.fooStatus + 1);
 }
-

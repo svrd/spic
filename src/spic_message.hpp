@@ -26,7 +26,7 @@ public:
         return decode32(m_data.data());
     }
 
-    virtual uint8_t* payload() override
+    virtual void* payload() override
     {
         return m_data.data()+HEADER_SIZE;
     }
@@ -41,7 +41,7 @@ public:
         m_data.reserve(HEADER_SIZE+size);
     }
 
-    virtual void pushPayload(const uint8_t* data, size_t size) override
+    virtual void pushPayload(const void* data, size_t size) override
     {
         m_data.resize(m_data.size()+size);
         auto* pos = m_data.data() + m_data.size() - size;
@@ -49,7 +49,7 @@ public:
         encodePayloadSize();
     }
 
-    virtual void popPayload(uint8_t* data, size_t size) override
+    virtual void popPayload(void* data, size_t size) override
     {
         (void)std::memcpy(data, &m_data.data()[m_pos], size);
         m_pos+=size;
@@ -58,19 +58,19 @@ public:
     virtual void pushPayload(const std::string& payload) override
     {
         auto size = payload.size();
-        pushPayload((uint8_t*)&size, sizeof(size));
-        pushPayload((uint8_t*)payload.data(), size);
+        pushPayload(&size, sizeof(size));
+        pushPayload(payload.data(), size);
     }
 
     virtual void popPayload(std::string& payload) override
     {
         size_t size;
-        popPayload((uint8_t*)&size, sizeof(size));
+        popPayload(&size, sizeof(size));
         payload.resize(size);
-        popPayload((uint8_t*)payload.data(), size);
+        popPayload(payload.data(), size);
     }
 
-    virtual uint8_t* data()
+    virtual void* data()
     {
         return m_data.data();
     }
@@ -100,13 +100,13 @@ public:
 
 protected:
 
-    uint32_t decode32(const uint8_t* data) {
+    uint32_t decode32(const void* data) {
         uint32_t tmp;
         ::memcpy(&tmp, data, sizeof(tmp));
         return ntohl(tmp);
     }
 
-    void encode32(uint8_t* data, uint32_t value) {
+    void encode32(void* data, uint32_t value) {
         uint32_t tmp = htonl(value);
         ::memcpy(data, &tmp, sizeof(tmp));
     }
